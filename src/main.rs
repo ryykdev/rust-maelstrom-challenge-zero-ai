@@ -8,7 +8,7 @@ fn main() {
         let stdin = io::stdin();
         let stdin_result = stdin.read_line(&mut buffer);
         if stdin_result.is_err() {
-            continue;
+            panic!("stdin read_line failed"); // this is panic sort of exercise
         }
         match from_str::<Message>(&buffer) {
             Ok(msg) => match msg.body.typ {
