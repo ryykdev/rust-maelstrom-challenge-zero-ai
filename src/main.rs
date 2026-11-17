@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string};
 use std::io;
+use uuid::Uuid;
 
 fn main() {
     loop {
@@ -19,6 +20,7 @@ fn main() {
                         body: Body {
                             typ: Typ::InitOk,
                             msg_id: msg.body.msg_id,
+                            id: None,
                             in_reply_to: Some(msg.body.msg_id),
                             node_id: None,
                             node_ids: None,
@@ -34,6 +36,26 @@ fn main() {
                         dest: msg.src,
                         body: Body {
                             typ: Typ::EchoOk,
+                            msg_id: msg.body.msg_id,
+                            id: None,
+                            in_reply_to: Some(msg.body.msg_id),
+                            node_id: None,
+                            node_ids: None,
+                            echo: msg.body.echo,
+                        },
+                    };
+                    let out = to_string(&message).unwrap();
+                    println!("{out}");
+                }
+                Typ::Generate => {
+                    // return generate_ok
+                    let id = Uuid::new_v4();
+                    let message = Message {
+                        src: msg.dest,
+                        dest: msg.src,
+                        body: Body {
+                            typ: Typ::GenerateOk,
+                            id: Some(id),
                             msg_id: msg.body.msg_id,
                             in_reply_to: Some(msg.body.msg_id),
                             node_id: None,
@@ -66,6 +88,8 @@ struct Body {
     typ: Typ,
     msg_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     node_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     node_ids: Option<Vec<String>>,
@@ -82,4 +106,6 @@ enum Typ {
     EchoOk,
     Init,
     InitOk,
+    Generate,
+    GenerateOk,
 }
