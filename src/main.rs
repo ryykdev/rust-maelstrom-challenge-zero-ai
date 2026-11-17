@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string};
-use std::io;
+use std::{collections::HashMap, io};
 use uuid::Uuid;
 
 fn main() {
+    let mut received_messages = Vec::<i64>::new();
     loop {
         let mut buffer = String::new();
         let stdin = io::stdin();
@@ -11,10 +12,10 @@ fn main() {
         if stdin_result.is_err() {
             panic!("stdin read_line failed"); // this is panic sort of exercise
         }
-        match from_str::<Message>(&buffer) {
+        match from_str::<PayLoad>(&buffer) {
             Ok(msg) => match msg.body.typ {
                 Typ::Init => {
-                    let message = Message {
+                    let message = PayLoad {
                         src: msg.dest,
                         dest: msg.src,
                         body: Body {
@@ -25,13 +26,16 @@ fn main() {
                             node_id: None,
                             node_ids: None,
                             echo: None,
+                            message: None,
+                            messages: None,
+                            topology: None,
                         },
                     };
                     let out = to_string(&message).unwrap();
                     println!("{out}");
                 }
                 Typ::Echo => {
-                    let message = Message {
+                    let message = PayLoad {
                         src: msg.dest,
                         dest: msg.src,
                         body: Body {
@@ -42,15 +46,17 @@ fn main() {
                             node_id: None,
                             node_ids: None,
                             echo: msg.body.echo,
+                            message: None,
+                            messages: None,
+                            topology: None,
                         },
                     };
                     let out = to_string(&message).unwrap();
                     println!("{out}");
                 }
                 Typ::Generate => {
-                    // return generate_ok
                     let id = Uuid::new_v4();
-                    let message = Message {
+                    let message = PayLoad {
                         src: msg.dest,
                         dest: msg.src,
                         body: Body {
@@ -60,7 +66,75 @@ fn main() {
                             in_reply_to: Some(msg.body.msg_id),
                             node_id: None,
                             node_ids: None,
-                            echo: msg.body.echo,
+                            echo: None,
+                            message: None,
+                            messages: None,
+                            topology: None,
+                        },
+                    };
+                    let out = to_string(&message).unwrap();
+                    println!("{out}");
+                }
+                Typ::Broadcast => {
+                    if let Some(message) = msg.body.message {
+                        received_messages.push(message);
+                        let message = PayLoad {
+                            src: msg.dest,
+                            dest: msg.src,
+                            body: Body {
+                                typ: Typ::BroadcastOk,
+                                id: None,
+                                msg_id: msg.body.msg_id,
+                                in_reply_to: Some(msg.body.msg_id),
+                                node_id: None,
+                                node_ids: None,
+                                echo: None,
+                                message: None,
+                                messages: None,
+                                topology: None,
+                            },
+                        };
+                        let out = to_string(&message).unwrap();
+                        println!("{out}");
+                    }
+                }
+                Typ::Read => {
+                    // return integers
+                    let message = PayLoad {
+                        src: msg.dest,
+                        dest: msg.src,
+                        body: Body {
+                            typ: Typ::ReadOk,
+                            id: None,
+                            msg_id: msg.body.msg_id,
+                            in_reply_to: Some(msg.body.msg_id),
+                            node_id: None,
+                            node_ids: None,
+                            echo: None,
+                            message: None,
+                            messages: Some(received_messages.clone()),
+                            topology: None,
+                        },
+                    };
+                    let out = to_string(&message).unwrap();
+                    println!("{out}");
+                }
+                Typ::Topology => {
+                    // handled in next step
+                    let message = PayLoad {
+                        src: msg.dest,
+                        dest: msg.src,
+                        body: Body {
+                            typ: Typ::TopologyOk,
+                            id: None,
+                            msg_id: msg.body.msg_id,
+                            in_reply_to: Some(msg.body.msg_id),
+                            node_id: None,
+                            node_ids: None,
+                            echo: None,
+                            message: None,
+                            messages: None,
+                            topology: None,
                         },
                     };
                     let out = to_string(&message).unwrap();
@@ -76,7 +150,7 @@ fn main() {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Message {
+struct PayLoad {
     src: String,
     dest: String,
     body: Body,
@@ -88,8 +162,6 @@ struct Body {
     typ: Typ,
     msg_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<Uuid>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     node_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     node_ids: Option<Vec<String>>,
@@ -97,6 +169,14 @@ struct Body {
     in_reply_to: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     echo: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    messages: Option<Vec<i64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    topology: Option<HashMap<String, Vec<String>>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -108,4 +188,10 @@ enum Typ {
     InitOk,
     Generate,
     GenerateOk,
+    Broadcast,
+    BroadcastOk,
+    Read,
+    ReadOk,
+    Topology,
+    TopologyOk,
 }
